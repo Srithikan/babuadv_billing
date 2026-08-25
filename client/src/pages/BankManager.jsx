@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import clsx from 'clsx';
 import { Plus, Edit2, Trash2, FileCheck, Building2, X, AlertCircle, Tag, Lock, KeyRound, ShieldAlert, ArrowRight, Layers } from 'lucide-react';
+import { supabase } from '../supabase';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function BankManager() {
     const [isAuthenticated, setIsAuthenticated] = useState(() => {
@@ -42,11 +43,52 @@ export default function BankManager() {
     };
 
     const fetchBanks = async () => {
+        // Try local Express API first
         try {
             const res = await axios.get(`${API_URL}/banks`);
-            setBanks(res.data);
+            if (res.data && Array.isArray(res.data)) {
+                setBanks(res.data);
+                return;
+            }
         } catch (err) {
-            console.error(err);
+            console.log("Local API server unreachable, fallback to direct Supabase query...");
+        }
+
+        // Direct Supabase query fallback for remote/mobile devices
+        try {
+            const { data, error } = await supabase
+                .from('banks')
+                .select(`
+                    id,
+                    name,
+                    template_path,
+                    bill_split,
+                    pricing (
+                        category,
+                        price,
+                        column_key
+                    )
+                `);
+
+            if (!error && data) {
+                setBanks(data);
+            } else {
+                // Fallback if column_key/bill_split missing in Supabase schema
+                const { data: fallbackData } = await supabase
+                    .from('banks')
+                    .select(`
+                        id,
+                        name,
+                        template_path,
+                        pricing (
+                            category,
+                            price
+                        )
+                    `);
+                setBanks(fallbackData || []);
+            }
+        } catch (supaErr) {
+            console.error('Error fetching banks from Supabase:', supaErr);
         }
     };
 
@@ -73,10 +115,36 @@ export default function BankManager() {
             setIsModalOpen(false);
             setEditingBank(null);
             setFormData({ name: '', template: null, bill_split: 'bank' });
+            return;
         } catch (err) {
-            const serverErr = err.response?.data?.error || err.message || 'Error saving bank';
-            alert(`Error saving bank: ${serverErr}`);
-            console.error(err);
+            console.log("Local server submit failed, executing direct Supabase fallback...");
+        }
+
+        // Supabase direct fallback for creating/editing bank
+        try {
+            const trimmedName = formData.name.trim();
+            const splitMode = formData.bill_split || 'bank';
+
+            if (editingBank) {
+                const { error } = await supabase
+                    .from('banks')
+                    .update({ name: trimmedName, bill_split: splitMode })
+                    .eq('id', editingBank.id);
+                if (error) throw error;
+            } else {
+                const { error } = await supabase
+                    .from('banks')
+                    .insert([{ name: trimmedName, bill_split: splitMode }]);
+                if (error) throw error;
+            }
+
+            fetchBanks();
+            setIsModalOpen(false);
+            setEditingBank(null);
+            setFormData({ name: '', template: null, bill_split: 'bank' });
+        } catch (supaErr) {
+            alert(`Error saving bank: ${supaErr.message || 'Failed to save bank'}`);
+            console.error(supaErr);
         }
     };
 
@@ -85,8 +153,18 @@ export default function BankManager() {
         try {
             await axios.delete(`${API_URL}/banks/${id}`);
             fetchBanks();
+            return;
         } catch (err) {
-            console.error(err);
+            console.log("Local server delete failed, fallback to direct Supabase delete...");
+        }
+
+        try {
+            await supabase.from('pricing').delete().eq('bank_id', id);
+            await supabase.from('banks').delete().eq('id', id);
+            fetchBanks();
+        } catch (supaErr) {
+            console.error('Supabase delete error:', supaErr);
+            alert(`Failed to delete bank: ${supaErr.message}`);
         }
     };
 
@@ -424,6 +502,7 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
         e.preventDefault();
         if (!category.trim() || price === '') return;
 
+        let success = false;
         try {
             if (editingCategory && editingCategory !== category.trim()) {
                 await axios.delete(`${API_URL}/banks/${bank.id}/pricing`, {
@@ -437,7 +516,39 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
                 price: parseFloat(price),
                 column_key: columnKey.trim() || undefined
             });
+            success = true;
+        } catch (err) {
+            console.log("Local server pricing save failed, attempting Supabase direct upsert...");
+            try {
+                if (editingCategory && editingCategory !== category.trim()) {
+                    await supabase
+                        .from('pricing')
+                        .delete()
+                        .eq('bank_id', bank.id)
+                        .ilike('category', editingCategory);
+                }
 
+                const payload = {
+                    bank_id: bank.id,
+                    category: category.trim(),
+                    price: parseFloat(price)
+                };
+                if (columnKey.trim()) payload.column_key = columnKey.trim();
+
+                const { error: supaErr } = await supabase
+                    .from('pricing')
+                    .upsert(payload, { onConflict: 'bank_id, category' });
+
+                if (supaErr) throw supaErr;
+                success = true;
+            } catch (supaErr) {
+                console.error('Error saving pricing via Supabase:', supaErr);
+                alert(`Failed to save pricing entry: ${supaErr.message}`);
+                return;
+            }
+        }
+
+        if (success) {
             const updated = localPricing.filter(p => p.category !== editingCategory && p.category !== category.trim());
             updated.push({
                 category: category.trim(),
@@ -451,9 +562,6 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
             setColumnKey('');
             setEditingCategory(null);
             onSave();
-        } catch (err) {
-            console.error('Error saving pricing:', err);
-            alert(`Failed to save pricing entry: ${err.response?.data?.error || err.message}`);
         }
     };
 
@@ -466,11 +574,31 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
 
     const handleDeleteItem = async (categoryToDelete) => {
         if (!confirm(`Delete pricing for "${categoryToDelete}"?`)) return;
+        let success = false;
         try {
             await axios.delete(`${API_URL}/banks/${bank.id}/pricing`, {
                 params: { category: categoryToDelete },
                 data: { category: categoryToDelete }
             });
+            success = true;
+        } catch (err) {
+            console.log("Local delete pricing failed, attempting Supabase direct delete...");
+            try {
+                const { error: supaErr } = await supabase
+                    .from('pricing')
+                    .delete()
+                    .eq('bank_id', bank.id)
+                    .ilike('category', categoryToDelete);
+                if (supaErr) throw supaErr;
+                success = true;
+            } catch (supaErr) {
+                console.error('Error deleting pricing entry via Supabase:', supaErr);
+                alert(`Failed to delete pricing entry: ${supaErr.message}`);
+                return;
+            }
+        }
+
+        if (success) {
             const updated = localPricing.filter(p => p.category !== categoryToDelete);
             setLocalPricing(updated);
             if (editingCategory === categoryToDelete) {
@@ -480,9 +608,6 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
                 setColumnKey('');
             }
             onSave();
-        } catch (err) {
-            console.error('Error deleting pricing entry:', err);
-            alert(`Failed to delete pricing entry: ${err.response?.data?.error || err.message}`);
         }
     };
 

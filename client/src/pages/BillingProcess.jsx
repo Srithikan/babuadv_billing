@@ -5,7 +5,7 @@ import { Link } from 'react-router-dom';
 import { Upload, FileText, CheckCircle2, AlertCircle, Download, FileSpreadsheet, ArrowRight, RefreshCw, Sparkles, Building2 } from 'lucide-react';
 import clsx from 'clsx';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function BillingProcess() {
     const [status, setStatus] = useState('idle'); // idle, processing, success, warning, error

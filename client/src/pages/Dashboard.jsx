@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Building2, FileCheck, ArrowUpRight, Upload, CheckCircle2, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { supabase } from '../supabase';
 
-const API_URL = 'http://localhost:5000/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 export default function Dashboard() {
     const [stats, setStats] = useState({ banks: 0, bills: 0 });
@@ -11,15 +12,31 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        axios.get(`${API_URL}/banks`)
-            .then(res => {
-                setStats(s => ({ ...s, banks: res.data.length }));
+        const fetchDashboardData = async () => {
+            try {
+                const res = await axios.get(`${API_URL}/banks`);
+                if (res.data && Array.isArray(res.data)) {
+                    setStats(s => ({ ...s, banks: res.data.length }));
+                    setLoading(false);
+                    return;
+                }
+            } catch (err) {
+                console.log("Local API not reachable, querying Supabase directly...");
+            }
+
+            try {
+                const { data, error } = await supabase.from('banks').select('id');
+                if (!error && data) {
+                    setStats(s => ({ ...s, banks: data.length }));
+                }
+            } catch (supaErr) {
+                console.error("Supabase query error:", supaErr);
+            } finally {
                 setLoading(false);
-            })
-            .catch(err => {
-                console.error(err);
-                setLoading(false);
-            });
+            }
+        };
+
+        fetchDashboardData();
     }, []);
 
     const todayStr = new Date().toLocaleDateString('en-US', {
