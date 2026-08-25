@@ -1,0 +1,10 @@
+{
+  "ignore": [
+    "uploads/*",
+    "generated_bills/*",
+    "*.docx",
+    "*.doc",
+    "*.json",
+    "*.txt"
+  ]
+}

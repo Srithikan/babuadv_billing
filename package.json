@@ -1,0 +1,17 @@
+{
+    "name": "babu-advocate-billing-root",
+    "version": "1.0.0",
+    "description": "Root script runner for Lawyer Billing System",
+    "scripts": {
+        "dev": "concurrently \"npm run server\" \"npm run client\"",
+        "server": "cd server && npm run dev",
+        "client": "cd client && npm run dev",
+        "install-all": "npm install && cd client && npm install && cd ../server && npm install"
+    },
+    "keywords": [],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "concurrently": "^9.2.1"
+    }
+}

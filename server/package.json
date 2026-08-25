@@ -1,0 +1,31 @@
+{
+  "name": "lawyer-billing-server",
+  "version": "1.0.0",
+  "description": "Backend for Lawyer Billing System",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon --ignore uploads/ --ignore generated_bills/ --ignore database/ index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.89.0",
+    "archiver": "^6.0.1",
+    "cors": "^2.8.5",
+    "csv-parse": "^5.5.3",
+    "docxtemplater": "^3.42.0",
+    "dotenv": "^17.2.3",
+    "express": "^4.18.2",
+    "multer": "^1.4.5-lts.1",
+    "pdf-lib": "^1.17.1",
+    "pizzip": "^3.1.6",
+    "sqlite3": "^5.1.7",
+    "to-words": "^4.9.0",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.3"
+  }
+}
