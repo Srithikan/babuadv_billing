@@ -81,6 +81,42 @@ router.get('/', async (req, res) => {
     }
 });
 
+// GET download uploaded template for a bank institution
+router.get('/:id/template', async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const { data: bank, error } = await supabase
+            .from('banks')
+            .select('id, name, template_path')
+            .eq('id', id)
+            .single();
+
+        if (error || !bank) {
+            return res.status(404).json({ error: 'Bank institution not found' });
+        }
+
+        if (!bank.template_path) {
+            return res.status(404).json({ error: 'No template uploaded for this bank institution' });
+        }
+
+        const filePath = path.join(__dirname, '../uploads', bank.template_path);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({ error: 'Template file not found on server' });
+        }
+
+        const safeName = bank.name.trim().replace(/[^a-zA-Z0-9_\-]/g, '_');
+        const ext = path.extname(bank.template_path) || '.docx';
+        const downloadFilename = `${safeName}_Template${ext}`;
+
+        res.download(filePath, downloadFilename);
+    } catch (err) {
+        console.error('Error serving bank template download:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // POST create a new bank (with optional template)
 router.post('/', upload.single('template'), async (req, res) => {
     const { name, bill_split } = req.body;

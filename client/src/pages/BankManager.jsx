@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import axios from 'axios';
 import clsx from 'clsx';
-import { Plus, Edit2, Trash2, FileCheck, Building2, X, AlertCircle, Tag, Lock, KeyRound, ShieldAlert, ArrowRight, Layers } from 'lucide-react';
+import { Plus, Edit2, Trash2, FileCheck, Building2, X, AlertCircle, Tag, Lock, KeyRound, ShieldAlert, ArrowRight, Layers, Download } from 'lucide-react';
 import { supabase } from '../supabase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -50,7 +51,7 @@ export default function BankManager() {
                 setBanks(res.data);
                 return;
             }
-        } catch (err) {
+        } catch {
             console.log("Local API server unreachable, fallback to direct Supabase query...");
         }
 
@@ -116,7 +117,7 @@ export default function BankManager() {
             setEditingBank(null);
             setFormData({ name: '', template: null, bill_split: 'bank' });
             return;
-        } catch (err) {
+        } catch {
             console.log("Local server submit failed, executing direct Supabase fallback...");
         }
 
@@ -154,7 +155,7 @@ export default function BankManager() {
             await axios.delete(`${API_URL}/banks/${id}`);
             fetchBanks();
             return;
-        } catch (err) {
+        } catch {
             console.log("Local server delete failed, fallback to direct Supabase delete...");
         }
 
@@ -281,9 +282,19 @@ export default function BankManager() {
                                 <td className="px-6 py-4">
                                     <div className="flex flex-col gap-1.5 items-start">
                                         {bank.template_path ? (
-                                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
-                                                <FileCheck size={13} /> Active (.docx)
-                                            </span>
+                                            <div className="flex items-center gap-2 flex-wrap">
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/80">
+                                                    <FileCheck size={13} /> Active (.docx)
+                                                </span>
+                                                <a
+                                                    href={`${API_URL}/banks/${bank.id}/template`}
+                                                    download
+                                                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300/80 transition-colors shadow-xs"
+                                                    title={`Download template for ${bank.name}`}
+                                                >
+                                                    <Download size={12} /> Download
+                                                </a>
+                                            </div>
                                         ) : (
                                             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-red-50 text-red-600 border border-red-200/80">
                                                 <AlertCircle size={13} /> Missing Template
@@ -325,6 +336,16 @@ export default function BankManager() {
                                 </td>
                                 <td className="px-6 py-4 text-right">
                                     <div className="flex items-center justify-end gap-1">
+                                        {bank.template_path && (
+                                            <a
+                                                href={`${API_URL}/banks/${bank.id}/template`}
+                                                download
+                                                className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
+                                                title="Download DOCX Template"
+                                            >
+                                                <Download size={16} />
+                                            </a>
+                                        )}
                                         <button
                                             onClick={() => {
                                                 setEditingBank(bank);
@@ -361,32 +382,32 @@ export default function BankManager() {
             </div>
 
             {/* Add / Edit Bank Modal */}
-            {isModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 animate-fade-in p-4">
-                    <div className="bg-white p-8 rounded-3xl w-full max-w-md shadow-2xl border border-slate-100 transform transition-all animate-slide-up">
-                        <div className="flex items-center justify-between mb-6 pb-3 border-b border-slate-100">
+            {isModalOpen && createPortal(
+                <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[9999] animate-fade-in p-4 overflow-y-auto">
+                    <div className="bg-white p-6 sm:p-7 rounded-3xl w-full max-w-md shadow-2xl border border-slate-100 transform transition-all animate-slide-up max-h-[90vh] flex flex-col my-auto">
+                        <div className="flex items-center justify-between pb-4 border-b border-slate-100 flex-shrink-0">
                             <div>
-                                <h3 className="text-xl font-bold text-slate-900">
+                                <h3 className="text-lg sm:text-xl font-bold text-slate-900">
                                     {editingBank ? 'Edit Bank Institution' : 'Add Bank Institution'}
                                 </h3>
                                 <p className="text-xs text-slate-500 mt-0.5">Define institution name, template & bill split mode</p>
                             </div>
                             <button
                                 onClick={() => setIsModalOpen(false)}
-                                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors"
+                                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition-colors flex-shrink-0"
                             >
                                 <X size={16} />
                             </button>
                         </div>
-                        <form onSubmit={handleSubmit} className="space-y-5">
+                        <form onSubmit={handleSubmit} className="space-y-4 pt-4 overflow-y-auto flex-1 pr-1">
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                     Bank Name
                                 </label>
                                 <input
                                     type="text"
                                     required
-                                    className="w-full border border-slate-200 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
+                                    className="w-full border border-slate-200 rounded-2xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all font-medium"
                                     placeholder="e.g. ICICI KCC or State Bank of India"
                                     value={formData.name}
                                     onChange={e => setFormData({ ...formData, name: e.target.value })}
@@ -395,26 +416,26 @@ export default function BankManager() {
 
                             {/* Bill Split Mode Option */}
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                     Bill Looping & Split Mode
                                 </label>
-                                <div className="grid grid-cols-2 gap-3">
+                                <div className="grid grid-cols-2 gap-2.5">
                                     <button
                                         type="button"
                                         onClick={() => setFormData({ ...formData, bill_split: 'bank' })}
                                         className={clsx(
-                                            "p-3 rounded-2xl border text-left transition-all flex flex-col justify-between",
+                                            "p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer",
                                             (formData.bill_split || 'bank') === 'bank'
                                                 ? "border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20 text-slate-900"
                                                 : "border-slate-200 bg-slate-50/50 hover:bg-slate-100/60 text-slate-600"
                                         )}
                                     >
                                         <div className="font-bold text-xs flex items-center gap-1.5 mb-1">
-                                            <span className={clsx("w-2 h-2 rounded-full", (formData.bill_split || 'bank') === 'bank' ? "bg-amber-500" : "bg-slate-300")} />
-                                            Bank-wise (Default)
+                                            <span className={clsx("w-2 h-2 rounded-full flex-shrink-0", (formData.bill_split || 'bank') === 'bank' ? "bg-amber-500" : "bg-slate-300")} />
+                                            Bank-wise
                                         </div>
                                         <p className="text-[10px] text-slate-500 leading-tight">
-                                            Single table containing all records for this bank (using <code className="text-amber-800">{`{#opinions}`}</code>).
+                                            Single table containing all records (<code className="text-amber-800 font-mono">{`{#opinions}`}</code>).
                                         </p>
                                     </button>
 
@@ -422,57 +443,71 @@ export default function BankManager() {
                                         type="button"
                                         onClick={() => setFormData({ ...formData, bill_split: 'branch' })}
                                         className={clsx(
-                                            "p-3 rounded-2xl border text-left transition-all flex flex-col justify-between",
+                                            "p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer",
                                             formData.bill_split === 'branch'
                                                 ? "border-amber-500 bg-amber-50/60 ring-2 ring-amber-500/20 text-slate-900"
                                                 : "border-slate-200 bg-slate-50/50 hover:bg-slate-100/60 text-slate-600"
                                         )}
                                     >
                                         <div className="font-bold text-xs flex items-center gap-1.5 mb-1">
-                                            <span className={clsx("w-2 h-2 rounded-full", formData.bill_split === 'branch' ? "bg-amber-500" : "bg-slate-300")} />
+                                            <span className={clsx("w-2 h-2 rounded-full flex-shrink-0", formData.bill_split === 'branch' ? "bg-amber-500" : "bg-slate-300")} />
                                             Branch-wise
                                         </div>
                                         <p className="text-[10px] text-slate-500 leading-tight">
-                                            Separate section per branch (using <code className="text-amber-800">{`{#branches}`}</code> outer loop).
+                                            Separate section per branch (<code className="text-amber-800 font-mono">{`{#branches}`}</code>).
                                         </p>
                                     </button>
                                 </div>
                             </div>
 
                             <div>
-                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
                                     DOCX Bill Template
                                 </label>
-                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-4 bg-slate-50/50 hover:bg-slate-50 transition-colors">
+                                <div className="border-2 border-dashed border-slate-200 rounded-2xl p-3.5 bg-slate-50/50 hover:bg-slate-50 transition-colors">
                                     <input
                                         type="file"
                                         accept=".docx"
-                                        className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer"
+                                        className="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-amber-100 file:text-amber-900 hover:file:bg-amber-200 cursor-pointer"
                                         onChange={e => setFormData({ ...formData, template: e.target.files[0] })}
                                     />
-                                    {editingBank && (
-                                        <p className="text-[11px] text-slate-400 mt-2">Leave empty to keep existing template</p>
+                                    {editingBank ? (
+                                        <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-200/60">
+                                            <p className="text-[11px] text-slate-400">Leave empty to keep existing template</p>
+                                            {editingBank.template_path && (
+                                                <a
+                                                    href={`${API_URL}/banks/${editingBank.id}/template`}
+                                                    download
+                                                    className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 hover:underline"
+                                                >
+                                                    <Download size={12} /> Download Current
+                                                </a>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <p className="text-[11px] text-slate-400 mt-1.5">Upload .docx template file containing replacement tags</p>
                                     )}
                                 </div>
                             </div>
-                            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 flex-shrink-0">
                                 <button
                                     type="button"
                                     onClick={() => setIsModalOpen(false)}
-                                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
+                                    className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-100 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
-                                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-amber-500/20 transition-all"
+                                    className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl shadow-md shadow-amber-500/20 transition-all cursor-pointer"
                                 >
-                                    Save Bank Institution
+                                    {editingBank ? 'Update Bank Institution' : 'Save Bank Institution'}
                                 </button>
                             </div>
                         </form>
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
 
             {/* Side Drawer Pricing Modal */}
@@ -487,16 +522,17 @@ export default function BankManager() {
 }
 
 function PricingModal({ isOpen, onClose, bank, onSave }) {
-    if (!isOpen || !bank) return null;
     const [category, setCategory] = useState('');
     const [price, setPrice] = useState('');
     const [columnKey, setColumnKey] = useState('');
     const [editingCategory, setEditingCategory] = useState(null);
-    const [localPricing, setLocalPricing] = useState(bank.pricing || []);
+    const [localPricing, setLocalPricing] = useState(bank?.pricing || []);
 
     useEffect(() => {
-        setLocalPricing(bank.pricing || []);
+        setLocalPricing(bank?.pricing || []);
     }, [bank]);
+
+    if (!isOpen || !bank) return null;
 
     const handleSavePricing = async (e) => {
         e.preventDefault();
@@ -517,7 +553,7 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
                 column_key: columnKey.trim() || undefined
             });
             success = true;
-        } catch (err) {
+        } catch {
             console.log("Local server pricing save failed, attempting Supabase direct upsert...");
             try {
                 if (editingCategory && editingCategory !== category.trim()) {
@@ -581,7 +617,7 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
                 data: { category: categoryToDelete }
             });
             success = true;
-        } catch (err) {
+        } catch {
             console.log("Local delete pricing failed, attempting Supabase direct delete...");
             try {
                 const { error: supaErr } = await supabase
@@ -611,8 +647,8 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
         }
     };
 
-    return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-end animate-fade-in">
+    return createPortal(
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[9999] flex items-center justify-end animate-fade-in">
             <div className="bg-white h-full w-full max-w-md shadow-2xl p-8 flex flex-col justify-between overflow-y-auto animate-slide-up border-l border-slate-100">
                 <div>
                     <div className="flex justify-between items-center pb-4 border-b border-slate-100 mb-6">
@@ -724,6 +760,7 @@ function PricingModal({ isOpen, onClose, bank, onSave }) {
                     </div>
                 </form>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 }

@@ -16,11 +16,12 @@ const Sidebar = ({ isOpen, onToggle }) => {
     return (
         <aside
             className={clsx(
-                "bg-white min-h-screen flex flex-col justify-between border-r border-slate-200/80 shadow-xs z-50 select-none transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0",
+                "relative bg-white min-h-screen flex flex-col justify-between border-r border-slate-200/80 shadow-xs z-50 select-none transition-all duration-300 ease-in-out overflow-hidden flex-shrink-0",
                 isOpen ? "w-72" : "w-20"
             )}
         >
-            <div>
+            {/* Top Section: Brand Header & Main Menu (Solid White Background) */}
+            <div className="bg-white relative z-10 flex-shrink-0">
                 {/* Brand Header */}
                 <div className="p-5 border-b border-slate-100 flex items-center justify-between">
                     <div className="flex items-center gap-3 overflow-hidden">
@@ -65,22 +66,22 @@ const Sidebar = ({ isOpen, onToggle }) => {
                                     isOpen ? "justify-between" : "justify-center",
                                     isActive
                                         ? "bg-amber-50 text-amber-900 border border-amber-300/80 font-bold shadow-xs"
-                                        : "text-slate-600 hover:bg-slate-100/80 hover:text-slate-900"
+                                        : "text-slate-700 hover:bg-slate-100/90 hover:text-slate-900 font-semibold"
                                 )}
                             >
                                 {isActive && (
                                     <span className="absolute left-0 top-2 bottom-2 w-1 bg-amber-500 rounded-r-full shadow-xs" />
                                 )}
                                 <div className="flex items-center gap-3.5">
-                                    <Icon size={20} className={clsx("transition-transform duration-200 flex-shrink-0", isActive ? "text-amber-600 scale-110" : "text-slate-400 group-hover:scale-105 group-hover:text-slate-700")} />
+                                    <Icon size={20} className={clsx("transition-transform duration-200 flex-shrink-0", isActive ? "text-amber-600 scale-110" : "text-slate-500 group-hover:scale-105 group-hover:text-slate-800")} />
                                     {isOpen && <span className="animate-fade-in whitespace-nowrap">{link.label}</span>}
                                 </div>
                                 {isOpen && link.badge && (
                                     <span className={clsx(
                                         "text-[10px] font-bold px-2 py-0.5 rounded-md border animate-fade-in",
                                         isActive
-                                            ? "bg-amber-200/60 text-amber-900 border-amber-300"
-                                            : "bg-slate-100 text-slate-500 border-slate-200"
+                                            ? "bg-amber-200/70 text-amber-900 border-amber-300"
+                                            : "bg-slate-100 text-slate-600 border-slate-200"
                                     )}>
                                         {link.badge}
                                     </span>
@@ -94,22 +95,34 @@ const Sidebar = ({ isOpen, onToggle }) => {
                 </nav>
             </div>
 
-            {/* Bottom Status */}
-            <div className="p-3 border-t border-slate-100">
-                <div className={clsx("bg-slate-50 border border-slate-200/80 rounded-xl p-3 flex items-center", isOpen ? "justify-between" : "justify-center")}>
-                    <div className="flex items-center gap-2.5">
-                        <div className="relative flex h-2.5 w-2.5 flex-shrink-0">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                        </div>
-                        {isOpen && (
-                            <div className="animate-fade-in whitespace-nowrap overflow-hidden">
-                                <p className="text-xs font-bold text-slate-800">System Ready</p>
-                                <p className="text-[10px] text-slate-400">Automated DOCX Engine</p>
+            {/* Lower Section: Covers space from end of menu to bottom as background */}
+            <div className="flex-1 relative overflow-hidden flex flex-col justify-end">
+                {/* Background Image Layer (starts right after menu) */}
+                <div
+                    className="absolute inset-0 pointer-events-none z-0 opacity-[0.22] bg-cover bg-top bg-no-repeat transition-all duration-300"
+                    style={{
+                        backgroundImage: `url('/babu_advocate.jpg')`,
+                        filter: 'contrast(1.05) brightness(1.05)'
+                    }}
+                />
+
+                {/* Bottom Status Box over background */}
+                <div className="p-3 relative z-10 border-t border-slate-200/60 backdrop-blur-[2px] bg-white/70">
+                    <div className={clsx("bg-white/80 border border-slate-200/80 rounded-xl p-3 flex items-center shadow-xs", isOpen ? "justify-between" : "justify-center")}>
+                        <div className="flex items-center gap-2.5">
+                            <div className="relative flex h-2.5 w-2.5 flex-shrink-0">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                             </div>
-                        )}
+                            {isOpen && (
+                                <div className="animate-fade-in whitespace-nowrap overflow-hidden">
+                                    <p className="text-xs font-bold text-slate-800">System Ready</p>
+                                    <p className="text-[10px] text-slate-500 font-medium">Automated DOCX Engine</p>
+                                </div>
+                            )}
+                        </div>
+                        {isOpen && <ShieldCheck size={16} className="text-slate-400 flex-shrink-0" />}
                     </div>
-                    {isOpen && <ShieldCheck size={16} className="text-slate-400 flex-shrink-0" />}
                 </div>
             </div>
         </aside>
@@ -144,12 +157,14 @@ export default function Layout({ children }) {
                         <span className="text-slate-800 font-semibold hidden sm:inline">Babu Advocate Billing</span>
                     </div>
                     <div className="flex items-center gap-3">
-                        <div className="h-8 w-8 rounded-full bg-amber-100 text-amber-800 border border-amber-300/60 font-bold text-xs flex items-center justify-center shadow-inner">
-                            BA
-                        </div>
+                        <img
+                            src="/babu_advocate.jpg"
+                            alt="Advocate Babu"
+                            className="h-9 w-9 rounded-full object-cover border-2 border-amber-400/80 shadow-xs flex-shrink-0"
+                        />
                         <div className="text-left hidden sm:block">
-                            <p className="text-xs font-semibold text-slate-800 leading-tight">Advocate Office</p>
-                            <p className="text-[10px] text-slate-400">Madurai Jurisdiction</p>
+                            <p className="text-xs font-bold text-slate-900 leading-tight">Advocate Babu</p>
+                            <p className="text-[10px] text-slate-500 font-medium">Madurai Jurisdiction</p>
                         </div>
                     </div>
                 </header>
