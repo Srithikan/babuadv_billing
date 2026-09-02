@@ -1269,7 +1269,14 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                 }
 
                 // Generate DOCX
-                const content = fs.readFileSync(path.join(__dirname, '../uploads', bank.template_path), 'binary');
+                let content;
+                if (bank.template_path && bank.template_path.startsWith('DATA:')) {
+                    const parts = bank.template_path.slice(5).split(':');
+                    const base64Str = parts.length > 1 ? parts.slice(1).join(':') : parts[0];
+                    content = Buffer.from(base64Str, 'base64');
+                } else {
+                    content = fs.readFileSync(path.join(__dirname, '../uploads', bank.template_path), 'binary');
+                }
                 const zip = new PizZip(content);
 
                 // Auto-sanitize Word floating table positioning properties to prevent overlapping in loops

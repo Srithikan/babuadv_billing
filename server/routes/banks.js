@@ -100,6 +100,20 @@ router.get('/:id/template', async (req, res) => {
             return res.status(404).json({ error: 'No template uploaded for this bank institution' });
         }
 
+        if (bank.template_path.startsWith('DATA:')) {
+            const parts = bank.template_path.slice(5).split(':');
+            const originalName = parts.length > 1 ? parts[0] : `${bank.name}_Template.docx`;
+            const base64Str = parts.length > 1 ? parts.slice(1).join(':') : parts[0];
+            const buffer = Buffer.from(base64Str, 'base64');
+
+            const safeName = bank.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+            const downloadFilename = originalName.endsWith('.docx') ? originalName : `${safeName}_Template.docx`;
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+            res.setHeader('Content-Disposition', `attachment; filename="${downloadFilename}"`);
+            return res.send(buffer);
+        }
+
         const filePath = path.join(__dirname, '../uploads', bank.template_path);
 
         if (!fs.existsSync(filePath)) {
@@ -119,8 +133,8 @@ router.get('/:id/template', async (req, res) => {
 
 // POST create a new bank (with optional template)
 router.post('/', upload.single('template'), async (req, res) => {
-    const { name, bill_split } = req.body;
-    const templatePath = req.file ? req.file.filename : null;
+    const { name, bill_split, template_data } = req.body;
+    const templatePath = req.file ? req.file.filename : (template_data || null);
 
     if (!name || !name.trim()) {
         return res.status(400).json({ error: 'Bank name is required' });
@@ -180,8 +194,8 @@ router.post('/', upload.single('template'), async (req, res) => {
 // PUT update bank (name or template or bill_split)
 router.put('/:id', upload.single('template'), async (req, res) => {
     const { id } = req.params;
-    const { name, bill_split } = req.body;
-    const templatePath = req.file ? req.file.filename : undefined;
+    const { name, bill_split, template_data } = req.body;
+    const templatePath = req.file ? req.file.filename : (template_data || undefined);
 
     const updates = {};
     if (name) updates.name = name;

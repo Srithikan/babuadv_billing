@@ -7,6 +7,53 @@ import { supabase } from '../supabase';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+const fileToBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            const base64Data = reader.result.split(',')[1];
+            resolve(`DATA:${file.name}:${base64Data}`);
+        };
+        reader.onerror = (error) => reject(error);
+    });
+};
+
+const handleDownloadTemplate = (e, bank) => {
+    if (!bank || !bank.template_path) return;
+    if (bank.template_path.startsWith('DATA:')) {
+        e.preventDefault();
+        try {
+            const parts = bank.template_path.slice(5).split(':');
+            const originalName = parts.length > 1 ? parts[0] : `${bank.name}_Template.docx`;
+            const base64Str = parts.length > 1 ? parts.slice(1).join(':') : parts[0];
+
+            const byteCharacters = atob(base64Str);
+            const byteNumbers = new Array(byteCharacters.length);
+            for (let i = 0; i < byteCharacters.length; i++) {
+                byteNumbers[i] = byteCharacters.charCodeAt(i);
+            }
+            const byteArray = new Uint8Array(byteNumbers);
+            const blob = new Blob([byteArray], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+
+            const safeName = bank.name.trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+            const downloadFilename = originalName.endsWith('.docx') ? originalName : `${safeName}_Template.docx`;
+
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = downloadFilename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        } catch (err) {
+            console.error('Error decoding Base64 template download:', err);
+            alert('Failed to download template file');
+        }
+    }
+};
+
 export default function BankManager() {
     const [isAuthenticated, setIsAuthenticated] = useState(() => {
         return sessionStorage.getItem('bank_manager_auth') === 'true';
@@ -101,10 +148,21 @@ export default function BankManager() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        let templateDataString = null;
+        if (formData.template) {
+            try {
+                templateDataString = await fileToBase64(formData.template);
+            } catch (err) {
+                console.error("Failed to convert template to Base64:", err);
+            }
+        }
+
         const data = new FormData();
         data.append('name', formData.name);
         data.append('bill_split', formData.bill_split || 'bank');
         if (formData.template) data.append('template', formData.template);
+        if (templateDataString) data.append('template_data', templateDataString);
 
         try {
             if (editingBank) {
@@ -121,21 +179,26 @@ export default function BankManager() {
             console.log("Local server submit failed, executing direct Supabase fallback...");
         }
 
-        // Supabase direct fallback for creating/editing bank
+        // Supabase direct fallback for creating/editing bank (Netlify & remote devices)
         try {
             const trimmedName = formData.name.trim();
             const splitMode = formData.bill_split || 'bank';
 
+            const updatePayload = { name: trimmedName, bill_split: splitMode };
+            if (templateDataString) {
+                updatePayload.template_path = templateDataString;
+            }
+
             if (editingBank) {
                 const { error } = await supabase
                     .from('banks')
-                    .update({ name: trimmedName, bill_split: splitMode })
+                    .update(updatePayload)
                     .eq('id', editingBank.id);
                 if (error) throw error;
             } else {
                 const { error } = await supabase
                     .from('banks')
-                    .insert([{ name: trimmedName, bill_split: splitMode }]);
+                    .insert([updatePayload]);
                 if (error) throw error;
             }
 
@@ -289,6 +352,7 @@ export default function BankManager() {
                                                 <a
                                                     href={`${API_URL}/banks/${bank.id}/template`}
                                                     download
+                                                    onClick={(e) => handleDownloadTemplate(e, bank)}
                                                     className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-300/80 transition-colors shadow-xs"
                                                     title={`Download template for ${bank.name}`}
                                                 >
@@ -340,6 +404,7 @@ export default function BankManager() {
                                             <a
                                                 href={`${API_URL}/banks/${bank.id}/template`}
                                                 download
+                                                onClick={(e) => handleDownloadTemplate(e, bank)}
                                                 className="p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-colors"
                                                 title="Download DOCX Template"
                                             >
@@ -478,6 +543,7 @@ export default function BankManager() {
                                                 <a
                                                     href={`${API_URL}/banks/${editingBank.id}/template`}
                                                     download
+                                                    onClick={(e) => handleDownloadTemplate(e, editingBank)}
                                                     className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-700 hover:text-amber-800 hover:underline"
                                                 >
                                                     <Download size={12} /> Download Current
