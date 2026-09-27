@@ -1017,6 +1017,7 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                 const sroEcInfo = getCatInfo('sro ec', 'ec', 'sro');
                 const apfInfo = getCatInfo('apf');
                 const modtInfo = getCatInfo('modt', 'sale', 'draft');
+                const rcInfo = getCatInfo('registration & cheque', 'registration', 'cheque', 'rc');
 
                 // Build branchGroups for Branch-wise looping templates
                 const branchMap = new Map();
@@ -1092,6 +1093,10 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                     const bSroEcInfo = getBranchCatInfo('sro ec', 'ec', 'sro');
                     const bApfInfo = getBranchCatInfo('apf');
                     const bModtInfo = getBranchCatInfo('modt', 'sale', 'draft');
+                    const bRcInfo = getBranchCatInfo('registration & cheque', 'registration', 'cheque', 'rc');
+
+                    const branchCatSum = Object.values(branchCatTotals).reduce((sum, c) => sum + (c.count || 0), 0);
+                    const branchTotalCases = branchCatSum > 0 ? branchCatSum : indexedOpinions.length;
 
                     const branchObj = {
                         sno: bIdx + 1,
@@ -1114,7 +1119,14 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                         GRAND_TOTAL: `${branchGrandTotal.toLocaleString('en-IN')}/-`,
                         GRAND_TOTAL_RAW: branchGrandTotal,
                         GRAND_TOTAL_IN_WORDS: toWords.convert(branchGrandTotal),
-                        TOTAL_CASES: indexedOpinions.length,
+                        TOTAL_CASES: branchTotalCases,
+                        TOTAL_COUNT: branchTotalCases,
+                        TOTAL_NO_OF_CASES: branchTotalCases,
+                        'Total Cases': branchTotalCases,
+                        'Total No of Cases': branchTotalCases,
+                        'Total No. of Cases': branchTotalCases,
+                        'No. of Cases': branchTotalCases,
+                        'No of Cases': branchTotalCases,
 
                         // Branch Counts
                         Opinion_COUNT: bOpinionInfo.count > 0 ? bOpinionInfo.count : 'Nil',
@@ -1127,6 +1139,11 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                         APF_COUNT: bApfInfo.count > 0 ? bApfInfo.count : 'Nil',
                         MODT_COUNT: bModtInfo.count > 0 ? bModtInfo.count : 'Nil',
                         SRO_EC_COUNT: bSroEcInfo.count > 0 ? bSroEcInfo.count : 'Nil',
+                        EC_COUNT: bSroEcInfo.count > 0 ? bSroEcInfo.count : 'Nil',
+                        'EC_COUNT': bSroEcInfo.count > 0 ? bSroEcInfo.count : 'Nil',
+                        'EC COUNT': bSroEcInfo.count > 0 ? bSroEcInfo.count : 'Nil',
+                        ENCUMBRANCE_CERTIFICATE_COUNT: bSroEcInfo.count > 0 ? bSroEcInfo.count : 'Nil',
+                        RC_COUNT: bRcInfo.count > 0 ? bRcInfo.count : 'Nil',
 
                         // Fees (inherited from bank level unit pricing)
                         Opinion_FEES: opinionInfo.formattedFees,
@@ -1135,6 +1152,17 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                         VETTING_FEES: vettingInfo.formattedFees,
                         VETTING_UNIT_PRICE: vettingInfo.formattedFees,
                         SRO_EC_FEES: sroEcInfo.formattedFees,
+                        EC_FEES: sroEcInfo.formattedFees,
+                        EC_UNIT_PRICE: sroEcInfo.formattedFees,
+                        APF_FEES: apfInfo.formattedFees,
+                        APF_UNIT_PRICE: apfInfo.formattedFees,
+                        MODT_FEES: modtInfo.formattedFees,
+                        RC_FEES: rcInfo.formattedFees,
+                        RC_UNIT_PRICE: rcInfo.formattedFees,
+                        RC_TOTAL: bRcInfo.formattedTotal,
+                        TOTAL_RC: bRcInfo.formattedTotal,
+                        EC_TOTAL: bSroEcInfo.formattedTotal,
+                        TOTAL_EC: bSroEcInfo.formattedTotal,
                     };
 
                     // Add dynamic category variables for this branch
@@ -1157,6 +1185,9 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                 const configuredInvoiceNo = getBankStartingInvoiceNo(bank.id, bank.starting_invoice_no);
                 const defaultInvoiceNo = `${today.getFullYear()}/${(today.getMonth() + 1).toString().padStart(2, '0')}/${bank.name.substring(0, 3).toUpperCase()}`;
                 const invoiceNumberVal = configuredInvoiceNo || defaultInvoiceNo;
+
+                const totalCategoryCases = Object.values(categoryTotals).reduce((sum, c) => sum + (c.count || 0), 0);
+                const totalCasesCount = totalCategoryCases > 0 ? totalCategoryCases : enrichedOpinions.length;
 
                 const templateData = {
                     BANK_NAME: bank.name,
@@ -1192,7 +1223,22 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                     'SRO EC_COUNT': sroEcInfo.count > 0 ? sroEcInfo.count : 'Nil',
                     'SRO EC COUNT': sroEcInfo.count > 0 ? sroEcInfo.count : 'Nil',
                     EC_COUNT: sroEcInfo.count > 0 ? sroEcInfo.count : 'Nil',
-                    TOTAL_CASES: enrichedOpinions.length,
+                    'EC_COUNT': sroEcInfo.count > 0 ? sroEcInfo.count : 'Nil',
+                    'EC COUNT': sroEcInfo.count > 0 ? sroEcInfo.count : 'Nil',
+                    ENCUMBRANCE_CERTIFICATE_COUNT: sroEcInfo.count > 0 ? sroEcInfo.count : 'Nil',
+                    RC_COUNT: rcInfo.count > 0 ? rcInfo.count : 'Nil',
+                    'RC_COUNT': rcInfo.count > 0 ? rcInfo.count : 'Nil',
+                    'RC COUNT': rcInfo.count > 0 ? rcInfo.count : 'Nil',
+                    TOTAL_CASES: totalCasesCount,
+                    TOTAL_COUNT: totalCasesCount,
+                    TOTAL_NO_OF_CASES: totalCasesCount,
+                    TOTAL_NUMBER_OF_CASES: totalCasesCount,
+                    'TOTAL_CASES': totalCasesCount,
+                    'Total Cases': totalCasesCount,
+                    'Total No of Cases': totalCasesCount,
+                    'Total No. of Cases': totalCasesCount,
+                    'No. of Cases': totalCasesCount,
+                    'No of Cases': totalCasesCount,
 
                     // Unit Prices
                     TSR_FEES: opinionInfo.formattedFees,
@@ -1204,10 +1250,27 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                     Vetting_FEES: vettingInfo.formattedFees,
                     'Vetting FEES': vettingInfo.formattedFees,
                     VETTING_UNIT_PRICE: vettingInfo.formattedFees,
+                    APF_FEES: apfInfo.formattedFees,
+                    APF_UNIT_PRICE: apfInfo.formattedFees,
+                    'APF FEES': apfInfo.formattedFees,
+                    'APF Fees': apfInfo.formattedFees,
+                    MODT_FEES: modtInfo.formattedFees,
+                    MODT_UNIT_PRICE: modtInfo.formattedFees,
                     SRO_EC_FEES: sroEcInfo.formattedFees,
                     'SRO EC_FEES': sroEcInfo.formattedFees,
                     'SRO EC FEES': sroEcInfo.formattedFees,
                     SRO_EC_UNIT_PRICE: sroEcInfo.formattedFees,
+                    EC_FEES: sroEcInfo.formattedFees,
+                    'EC_FEES': sroEcInfo.formattedFees,
+                    'EC FEES': sroEcInfo.formattedFees,
+                    'EC Fees': sroEcInfo.formattedFees,
+                    EC_UNIT_PRICE: sroEcInfo.formattedFees,
+                    ENCUMBRANCE_CERTIFICATE_FEES: sroEcInfo.formattedFees,
+                    RC_FEES: rcInfo.formattedFees,
+                    RC_UNIT_PRICE: rcInfo.formattedFees,
+                    'RC_FEES': rcInfo.formattedFees,
+                    'RC FEES': rcInfo.formattedFees,
+                    'RC Fees': rcInfo.formattedFees,
 
                     // Category Totals
                     TOTAL_LSR: opinionInfo.formattedTotal,
@@ -1217,6 +1280,8 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                     'Opinion TOTAL': opinionInfo.formattedTotal,
                     TOTAL_APF: apfInfo.formattedTotal,
                     APF_TOTAL: apfInfo.formattedTotal,
+                    'APF_TOTAL': apfInfo.formattedTotal,
+                    'APF TOTAL': apfInfo.formattedTotal,
                     TOTAL_VETTING: vettingInfo.formattedTotal,
                     VETTING_TOTAL: vettingInfo.formattedTotal,
                     Vetting_TOTAL: vettingInfo.formattedTotal,
@@ -1227,6 +1292,17 @@ router.post('/generate', upload.single('file'), async (req, res) => {
                     SRO_EC_TOTAL: sroEcInfo.formattedTotal,
                     'SRO EC_TOTAL': sroEcInfo.formattedTotal,
                     'SRO EC TOTAL': sroEcInfo.formattedTotal,
+                    EC_TOTAL: sroEcInfo.formattedTotal,
+                    TOTAL_EC: sroEcInfo.formattedTotal,
+                    'EC_TOTAL': sroEcInfo.formattedTotal,
+                    'EC TOTAL': sroEcInfo.formattedTotal,
+                    'EC Total': sroEcInfo.formattedTotal,
+                    ENCUMBRANCE_CERTIFICATE_TOTAL: sroEcInfo.formattedTotal,
+                    TOTAL_RC: rcInfo.formattedTotal,
+                    RC_TOTAL: rcInfo.formattedTotal,
+                    'RC_TOTAL': rcInfo.formattedTotal,
+                    'RC TOTAL': rcInfo.formattedTotal,
+                    'RC Total': rcInfo.formattedTotal,
 
                     opinions: enrichedOpinions,
                     branches: (bank.bill_split === 'branch' ? branchGroups : [{
